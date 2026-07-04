@@ -1,5 +1,5 @@
 import { scoreExactPrediction } from '../../../shared/scoring/exact-score';
-import type { FeedEventSnapshot, MatchSnapshot, ParticipantPredictionsSnapshot, PredictionSnapshot, RankingEntrySnapshot } from '../../../shared/types/domain';
+import type { FeedEventSnapshot, MatchSnapshot, ParticipantPredictionsSnapshot, PredictionSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../../shared/types/domain';
 
 const participants = new Map<string, ParticipantPredictionsSnapshot>();
 const matches = new Map<string, MatchSnapshot>();
@@ -85,6 +85,32 @@ export function upsertMatches(nextMatches: MatchSnapshot[]) {
     matchCount: matches.size,
     finalizedMatchCount: finalizedMatches.length,
   };
+}
+
+
+export function getPublicPredictionsForMatch(matchExternalId: string, now = Date.now()) {
+  const match = matches.get(matchExternalId);
+  if (!match) return { ok: false, error: 'Partida não encontrada.', predictions: [] as PublicPredictionSnapshot[] } as const;
+
+  const isAfterKickoff = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= now;
+  if (!isAfterKickoff) return { ok: false, error: 'Palpites serão revelados após o kickoff.', predictions: [] as PublicPredictionSnapshot[] } as const;
+
+  const predictions = Array.from(participants.values()).flatMap((participant) => {
+    const prediction = participant.predictions.find((item) => item.matchExternalId === matchExternalId);
+    if (!prediction) return [];
+
+    return [{
+      displayName: participant.displayName,
+      initials: getInitials(participant.displayName),
+      matchExternalId,
+      homeScore: prediction.homeScore,
+      awayScore: prediction.awayScore,
+      points: prediction.points,
+      savedAt: prediction.savedAt,
+    } satisfies PublicPredictionSnapshot];
+  });
+
+  return { ok: true, predictions } as const;
 }
 
 export function validatePredictionWindow(matchExternalId: string, now = Date.now()) {

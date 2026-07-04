@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { savePredictionsSchema, usernameSchema } from '../../../shared/validators/prediction';
 import type { Env } from '../lib/env';
-import { assertSaveRateLimit, getParticipantByUsername, upsertParticipantPredictions, validatePredictionWindow } from '../lib/memory-store';
+import { assertSaveRateLimit, getParticipantByUsername, getPublicPredictionsForMatch, upsertParticipantPredictions, validatePredictionWindow } from '../lib/memory-store';
 
 function getClientIp(request: Request) {
   return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
@@ -13,6 +13,12 @@ export const predictionsRoute = new Hono<{ Bindings: Env }>()
     if (!parsed.success) return c.json({ error: 'Username inválido.' }, 400);
 
     return c.json({ participant: getParticipantByUsername(parsed.data) });
+  })
+  .get('/matches/:matchExternalId/predictions', (c) => {
+    const result = getPublicPredictionsForMatch(c.req.param('matchExternalId'));
+    if (!result.ok) return c.json({ error: result.error, predictions: [] }, 403);
+
+    return c.json({ predictions: result.predictions });
   })
   .post('/predictions', async (c) => {
     const rateLimit = assertSaveRateLimit(getClientIp(c.req.raw));

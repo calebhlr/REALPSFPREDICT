@@ -59,3 +59,13 @@ export interface FeedEventSnapshot {
   matchExternalId?: string;
   username?: string;
 }
+
+export interface PublicPredictionSnapshot {
+  displayName: string;
+  initials: string;
+  matchExternalId: string;
+  homeScore: number;
+  awayScore: number;
+  points: 0 | 1;
+  savedAt: string;
+}
