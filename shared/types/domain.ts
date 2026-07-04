@@ -22,3 +22,16 @@ export interface MatchSnapshot {
   awayScore: number | null;
   winnerTeamId: string | null;
 }
+
+export interface PredictionSnapshot {
+  matchExternalId: string;
+  homeScore: number;
+  awayScore: number;
+  savedAt: string;
+}
+
+export interface ParticipantPredictionsSnapshot {
+  displayName: string;
+  username: string;
+  predictions: PredictionSnapshot[];
+}
