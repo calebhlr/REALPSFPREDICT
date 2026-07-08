@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePlaceholderName, parseEspnScoreboard } from './parser';
-
 describe('normalizePlaceholderName', () => {
   it('marks placeholder teams parsed from ESPN labels', () => {
     expect(normalizePlaceholderName('Round of 16 3 Winner')).toEqual({
@@ -9,10 +8,9 @@ describe('normalizePlaceholderName', () => {
     });
   });
 });
-
 describe('parseEspnScoreboard', () => {
   it('marks parsed placeholder competitors so predictions can be blocked', () => {
-    const [match] = parseEspnScoreboard({
+    const { match } = parseEspnScoreboard({
       events: [{
         id: 'match-1',
         name: 'Quarterfinal',
@@ -26,8 +24,8 @@ describe('parseEspnScoreboard', () => {
         }],
       }],
     });
-
-    expect(match.homeTeam).toMatchObject({ name: 'Vencedor — Jogo 1', isPlaceholder: true });
-    expect(match.awayTeam).toMatchObject({ name: 'Brazil', isPlaceholder: false });
+    expect(match).not.toBeNull();
+    expect(match?.homeTeam).toMatchObject({ name: 'Vencedor — Jogo 1', isPlaceholder: true });
+    expect(match?.awayTeam).toMatchObject({ name: 'Brazil', isPlaceholder: false });
   });
 });
