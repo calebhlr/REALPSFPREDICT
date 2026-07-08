@@ -10,19 +10,7 @@ import { syncKnockoutMatches } from './jobs/sync';
 
 const app = new Hono<{ Bindings: Env }>();
 
-const allowedCorsOrigins = new Set([
-  'https://app.psfes.space',
-  'http://localhost:5173',
-]);
-
-app.use(
-  '/api/*',
-  cors({
-    origin: (origin) => (allowedCorsOrigins.has(origin) ? origin : null),
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['content-type', 'x-admin-token'],
-  }),
-);
+app.use('/api/*', cors());
 app.route('/api', healthRoute);
 app.route('/api', syncRoute);
 app.route('/api', matchesRoute);

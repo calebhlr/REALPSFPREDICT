@@ -1,17 +1,18 @@
 import type { MatchRound, MatchSnapshot, MatchStatus, TeamSnapshot } from '../types/domain';
 
-export interface EspnScoreboardParseResult {
-  matches: MatchSnapshot[];
-  discardedUnknownRoundCount: number;
-}
-
 const ROUND_BY_NAME: Array<[RegExp, MatchRound]> = [
-  [/\b(round of 16|oitavas(?: de final)?)\b/i, 'round_of_16'],
-  [/\b(quarterfinal|quarter-final|quarter final|quartas(?: de final)?)\b/i, 'quarterfinal'],
-  [/\b(semifinal|semi-final|semi final|semifinais?)\b/i, 'semifinal'],
-  [/\b(third place|3rd place|terceiro lugar|disputa (?:do )?3[ºo] lugar)\b/i, 'third_place'],
-  [/\b(final|grande final)\b/i, 'final'],
+  [/round of 16|oitavas/i, 'round_of_16'],
+  [/quarter|quartas/i, 'quarterfinal'],
+  [/semi/i, 'semifinal'],
+  [/third|3rd|terceiro|3º/i, 'third_place'],
+  [/final/i, 'final'],
 ];
+
+export type EspnScoreboardParseResult = [MatchSnapshot | null, boolean] & {
+  match: MatchSnapshot | null;
+  discardedUnknownRound: boolean;
+  externalId: string | null;
+};
 
 export function normalizePlaceholderName(rawName: string): { name: string; isPlaceholder: boolean } {
   const normalized = rawName.replace(/[–—]/g, '-').trim();
@@ -28,41 +29,52 @@ export function normalizePlaceholderName(rawName: string): { name: string; isPla
   return { name: tbd ? 'A definir' : rawName, isPlaceholder: tbd };
 }
 
-export function parseEspnScoreboard(payload: unknown): EspnScoreboardParseResult {
+export function parseEspnScoreboard(payload: unknown): MatchSnapshot[] {
   const events = asRecord(payload).events;
-  if (!Array.isArray(events)) return { matches: [], discardedUnknownRoundCount: 0 };
+  if (!Array.isArray(events)) return [];
 
-  return events.reduce<EspnScoreboardParseResult>((result, event) => {
-    const parsed = parseEvent(event);
-    if (parsed.discardedUnknownRound) result.discardedUnknownRoundCount += 1;
-    if (parsed.match) result.matches.push(parsed.match);
-    return result;
-  }, { matches: [], discardedUnknownRoundCount: 0 });
+  return events
+    .map(parseEvent)
+    .map((result) => result.match)
+    .filter((match): match is MatchSnapshot => match !== null);
 }
 
-function parseEvent(event: unknown): { match: MatchSnapshot | null; discardedUnknownRound: boolean } {
+export function parseEspnScoreboardEvent(event: unknown): EspnScoreboardParseResult {
+  return parseEvent(event);
+}
+
+function parseEvent(event: unknown): EspnScoreboardParseResult {
   const record = asRecord(event);
+  const externalId = typeof record.id === 'string' ? record.id : null;
   const competition = Array.isArray(record.competitions) ? asRecord(record.competitions[0]) : {};
   const competitors = Array.isArray(competition.competitors) ? competition.competitors.map(asRecord) : [];
-  if (competitors.length < 2 || typeof record.id !== 'string') return { match: null, discardedUnknownRound: false };
+  if (competitors.length < 2 || externalId === null) return createParseResult(null, false, externalId);
 
   const round = parseRound(record.name, record.shortName);
-  if (round === null) return { match: null, discardedUnknownRound: true };
+  if (round === null) return createParseResult(null, true, externalId);
 
   const home = competitors.find((competitor) => competitor.homeAway === 'home') ?? competitors[0];
   const away = competitors.find((competitor) => competitor.homeAway === 'away') ?? competitors[1];
 
-  return {
-    externalId: record.id,
-    round: parseRound(record.name, record.shortName),
+  return createParseResult({
+    externalId,
+    round,
     kickoffAt: String(record.date ?? competition.date ?? ''),
-    status: parseStatus(asRecord(asRecord(competition.status).type), asRecord(asRecord(record.status).type)),
+    status: parseStatus(asRecord(asRecord(record.status).type).name, asRecord(asRecord(record.status).type).state),
     homeTeam: parseTeam(home),
     awayTeam: parseTeam(away),
     homeScore: parseNullableInt(home.score),
     awayScore: parseNullableInt(away.score),
     winnerTeamId: findWinnerTeamId(competitors),
-  };
+  }, false, externalId);
+}
+
+function createParseResult(match: MatchSnapshot | null, discardedUnknownRound: boolean, externalId: string | null): EspnScoreboardParseResult {
+  const result = [match, discardedUnknownRound] as EspnScoreboardParseResult;
+  result.match = match;
+  result.discardedUnknownRound = discardedUnknownRound;
+  result.externalId = externalId;
+  return result;
 }
 
 function parseTeam(competitor: Record<string, unknown>): TeamSnapshot {
@@ -80,51 +92,16 @@ function parseTeam(competitor: Record<string, unknown>): TeamSnapshot {
   };
 }
 
-export function parseRound(...names: unknown[]): MatchRound | null {
+function parseRound(...names: unknown[]): MatchRound | null {
   const joined = names.filter(Boolean).join(' ');
   return ROUND_BY_NAME.find(([pattern]) => pattern.test(joined))?.[1] ?? null;
 }
 
-const STATUS_BY_STATE: Record<string, MatchStatus> = {
-  pre: 'scheduled',
-  in: 'in_progress',
-  live: 'in_progress',
-  post: 'final',
-};
-
-const STATUS_BY_NAME: Record<string, MatchStatus> = {
-  STATUS_SCHEDULED: 'scheduled',
-  STATUS_IN_PROGRESS: 'in_progress',
-  STATUS_HALFTIME: 'in_progress',
-  STATUS_FINAL: 'final',
-  STATUS_FINAL_PEN: 'final',
-};
-
-const STATUS_BY_ID: Record<string, MatchStatus> = {
-  '1': 'scheduled',
-  '2': 'in_progress',
-  '3': 'final',
-};
-
-function parseStatus(...statusTypes: Array<Record<string, unknown>>): MatchStatus {
-  for (const statusType of statusTypes) {
-    if (statusType.completed === true) return 'final';
-
-    const state = normalizeStatusField(statusType.state);
-    if (state && STATUS_BY_STATE[state]) return STATUS_BY_STATE[state];
-
-    const name = normalizeStatusField(statusType.name);
-    if (name && STATUS_BY_NAME[name]) return STATUS_BY_NAME[name];
-
-    const id = normalizeStatusField(statusType.id);
-    if (id && STATUS_BY_ID[id]) return STATUS_BY_ID[id];
-  }
-
-  return 'in_progress';
-}
-
-function normalizeStatusField(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+function parseStatus(name: unknown, state: unknown): MatchStatus {
+  const text = `${String(name ?? '')} ${String(state ?? '')}`.toLowerCase();
+  if (/final|post/.test(text)) return 'final';
+  if (/in|live|progress|halftime/.test(text)) return 'in_progress';
+  return 'scheduled';
 }
 
 function findWinnerTeamId(competitors: Record<string, unknown>[]): string | null {
