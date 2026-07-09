@@ -18,8 +18,7 @@ export async function fetchKnockoutMatches(env: Env) {
 }
 
 export function getEspnDateQueries(dates: string): string[] {
-  const trimmed = dates.trim();
-  return [...new Set([trimmed, ...expandEspnDateQueries(trimmed)])];
+  return [dates.trim()];
 }
 
 export function expandEspnDateQueries(dates: string): string[] {

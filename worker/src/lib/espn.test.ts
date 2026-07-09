@@ -26,13 +26,8 @@ describe('expandEspnDateQueries', () => {
 });
 
 describe('getEspnDateQueries', () => {
-  it('keeps the original range before daily fallback queries', () => {
-    expect(getEspnDateQueries('20260628-20260630')).toEqual([
-      '20260628-20260630',
-      '20260628',
-      '20260629',
-      '20260630',
-    ]);
+  it('uses only the original ESPN date query to stay below Worker subrequest limits', () => {
+    expect(getEspnDateQueries('20260628-20260630')).toEqual(['20260628-20260630']);
   });
 });
 
