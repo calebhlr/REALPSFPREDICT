@@ -1,15 +1,20 @@
-import { parseEspnScoreboard } from '../../../shared/espn/parser';
+import { parseEspnScoreboard, parseEspnScoreboardEvent } from '../../../shared/espn/parser';
 import type { MatchSnapshot } from '../../../shared/types/domain';
 import type { Env } from './env';
 
 const ESPN_DATE_PATTERN = /^\d{8}$/;
 const ESPN_DATE_RANGE_PATTERN = /^(\d{8})-(\d{8})$/;
+const EXPECTED_KNOCKOUT_MATCH_COUNT = 32;
+const FIRST_2026_KNOCKOUT_EVENT_ID = 760486;
 
 export async function fetchKnockoutMatches(env: Env) {
   const dateQueries = getEspnDateQueries(env.ESPN_KNOCKOUT_DATES);
   const matchGroups = await Promise.all(dateQueries.map((dates) => fetchKnockoutMatchesForDates(env, dates)));
+  const scoreboardMatches = dedupeMatches(matchGroups.flat());
+  if (scoreboardMatches.length >= EXPECTED_KNOCKOUT_MATCH_COUNT) return scoreboardMatches;
 
-  return dedupeMatches(matchGroups.flat());
+  const summaryMatches = await fetchKnockoutMatchesByEventId(env);
+  return dedupeMatches([...scoreboardMatches, ...summaryMatches]);
 }
 
 export function getEspnDateQueries(dates: string): string[] {
@@ -35,6 +40,25 @@ export function expandEspnDateQueries(dates: string): string[] {
   return dateQueries;
 }
 
+async function fetchKnockoutMatchesByEventId(env: Env) {
+  const eventIds = Array.from({ length: EXPECTED_KNOCKOUT_MATCH_COUNT }, (_, index) => String(FIRST_2026_KNOCKOUT_EVENT_ID + index));
+  const matches = await Promise.all(eventIds.map((eventId) => fetchKnockoutMatchSummary(env, eventId)));
+
+  return matches.filter((match): match is MatchSnapshot => match !== null);
+}
+
+async function fetchKnockoutMatchSummary(env: Env, eventId: string) {
+  const url = new URL('/apis/site/v2/sports/soccer/fifa.world/summary', getEspnSummaryBaseUrl(env));
+  url.searchParams.set('event', eventId);
+  url.searchParams.set('lang', 'pt');
+  url.searchParams.set('region', 'br');
+
+  const response = await fetch(url, { headers: { accept: 'application/json' } });
+  if (!response.ok) return null;
+
+  return parseEspnScoreboardEvent(asRecord(await response.json()).header).match;
+}
+
 async function fetchKnockoutMatchesForDates(env: Env, dates: string) {
   const url = new URL(env.ESPN_SCOREBOARD_URL);
   url.searchParams.set('dates', dates);
@@ -48,9 +72,20 @@ async function fetchKnockoutMatchesForDates(env: Env, dates: string) {
   return parseEspnScoreboard(await response.json());
 }
 
+function getEspnSummaryBaseUrl(env: Env) {
+  const scoreboardUrl = new URL(env.ESPN_SCOREBOARD_URL);
+  scoreboardUrl.hostname = scoreboardUrl.hostname.replace(/^site\.api\./, 'site.web.api.');
+
+  return scoreboardUrl;
+}
+
 function dedupeMatches(matches: MatchSnapshot[]) {
   return [...new Map(matches.map((match) => [match.externalId, match])).values()]
     .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
 function parseEspnDate(value: string) {
