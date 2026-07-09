@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
+import { AdminArea } from './Admin';
 
 // ==========================================
 // 1. CONFIGURAÇÕES E CONSTANTES GERAIS
@@ -34,8 +35,14 @@ type PublicDataError = string;
 // 3. COMPONENTE PRINCIPAL (APP)
 // ==========================================
 export function App() {
-  // --- Estados de Roteamento e Tempo ---
+  // Renderizamos de acordo com a rota
   const [route, setRoute] = useState(() => window.location.pathname);
+  if (route.startsWith('/admin')) return <AdminArea />;
+  return <PublicApp route={route} setRoute={setRoute} />;
+}
+
+function PublicApp({ route, setRoute }: { route: string; setRoute: (r: string) => void }) {
+  // --- Estados de Tempo ---
   const [now, setNow] = useState(() => Date.now());
 
   // --- Estados dos Dados Públicos (API) ---

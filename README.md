@@ -17,7 +17,7 @@ For local development and deployment, you need to configure the following enviro
 - `ESPN_SCOREBOARD_URL`: URL to fetch ESPN scoreboard data.
 - `ESPN_KNOCKOUT_DATES`: Dates for knockout matches.
 - `ADMIN_EMAIL`: Administrator email.
-- `ADMIN_TOKEN`: Optional admin authentication token.
+- `ADMIN_TOKEN`: Admin authentication token required to access the /admin dashboard.
 
 ## Commands
 
