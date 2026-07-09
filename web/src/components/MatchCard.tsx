@@ -20,7 +20,7 @@ export function MatchCard({ match, draft, now, publicPredictions, onChange, onRe
 }
 
 function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-start text-left sm:justify-end sm:text-right' : ''}`}>{align === 'right' && <strong className="order-2 text-base font-black sm:order-none sm:text-lg">{name}</strong>}<div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-psf-background text-sm font-black sm:h-11 sm:w-11">{logoUrl ? <img alt="" className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
+  return <div className={`flex min-w-0 items-center gap-3 ${align === 'right' ? 'justify-start text-left sm:justify-end sm:text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="order-2 min-w-0 break-words text-base font-black sm:order-none sm:text-lg">{name}</strong>}<div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-psf-background text-sm font-black sm:h-11 sm:w-11">{logoUrl ? <img alt="" className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="min-w-0 break-words text-base font-black sm:text-lg">{name}</strong>}</div>;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
