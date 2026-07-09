@@ -88,6 +88,23 @@ describe('parseEspnScoreboard', () => {
     });
   });
 
+
+
+  it('reads country flag URLs from ESPN logos arrays', () => {
+    const { match } = parseEspnScoreboardEvent({
+      ...createEvent('Round of 16'),
+      competitions: [{
+        competitors: [
+          { homeAway: 'home', score: '', team: { id: 'home', displayName: 'Colômbia', abbreviation: 'COL', logos: [{ href: 'https://example.com/colombia.png' }] } },
+          { homeAway: 'away', score: '', team: { id: 'away', displayName: 'Gana', abbreviation: 'GHA', logos: [{ href: 'https://example.com/ghana.png' }] } },
+        ],
+      }],
+    });
+
+    expect(match?.homeTeam.logoUrl).toBe('https://example.com/colombia.png');
+    expect(match?.awayTeam.logoUrl).toBe('https://example.com/ghana.png');
+  });
+
   it('continues discarding events with unknown rounds outside the known knockout dates', () => {
     const { match, discardedUnknownRound } = parseEspnScoreboardEvent({ ...createEvent('Group Stage'), date: '2026-06-20T20:00:00.000Z' });
 

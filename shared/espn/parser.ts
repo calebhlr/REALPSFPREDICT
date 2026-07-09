@@ -88,10 +88,22 @@ function parseTeam(competitor: Record<string, unknown>): TeamSnapshot {
     id: String(team.id ?? competitor.id ?? placeholder.name),
     name: placeholder.name,
     abbreviation: typeof team.abbreviation === 'string' ? team.abbreviation : null,
-    logoUrl: typeof team.logo === 'string' ? team.logo : null,
+    logoUrl: parseTeamLogo(team),
     color: typeof team.color === 'string' ? `#${team.color.replace(/^#/, '')}` : null,
     isPlaceholder: placeholder.isPlaceholder,
   };
+}
+
+function parseTeamLogo(team: Record<string, unknown>) {
+  if (typeof team.logo === 'string') return team.logo;
+
+  const logos = team.logos;
+  if (Array.isArray(logos)) {
+    const logo = logos.map(asRecord).find((candidate) => typeof candidate.href === 'string');
+    if (logo && typeof logo.href === 'string') return logo.href;
+  }
+
+  return null;
 }
 
 function parseRound(...names: unknown[]): MatchRound | null {
