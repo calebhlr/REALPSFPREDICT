@@ -3,7 +3,18 @@ import { formatKickoff, statusText } from '../lib/presentation';
 import { isPlaceholderTeam, teamCode, teamEmoji } from '../lib/teams';
 import type { ScoreDraft } from '../types';
 
-export function MatchCard({ match, draft, now, publicPredictions, isOpen, allMatches = [match], onChange, onToggleReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; isOpen: boolean; allMatches?: MatchSnapshot[]; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onToggleReveal: (matchExternalId: string) => void }) {
+type MatchCardProps = {
+  match: MatchSnapshot;
+  draft?: ScoreDraft;
+  now: number;
+  publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string };
+  isOpen: boolean;
+  allMatches?: MatchSnapshot[];
+  onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void;
+  onToggleReveal: (matchExternalId: string) => void;
+};
+
+export function MatchCard({ match, draft, now, publicPredictions, isOpen, allMatches = [match], onChange, onToggleReveal }: MatchCardProps) {
   const locked = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= now;
   const hasPlaceholder = isPlaceholderTeam(match.homeTeam) || isPlaceholderTeam(match.awayTeam);
   const disabled = locked || hasPlaceholder;
