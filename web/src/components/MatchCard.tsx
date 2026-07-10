@@ -1,4 +1,4 @@
-import type { MatchSnapshot, PublicPredictionSnapshot, TeamSnapshot } from '../../../shared/types/domain';
+import type { MatchSnapshot, PublicPredictionSnapshot } from '../../../shared/types/domain';
 import type { ScoreDraft } from '../types';
 import { formatKickoff, statusText } from '../lib/presentation';
 
