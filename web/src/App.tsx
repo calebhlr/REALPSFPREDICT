@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
+import { isPlaceholderTeam, teamCode } from './lib/teams';
 import { PredictionsPage } from './pages/PredictionsPage';
 
 const ROUND_LABELS: Record<MatchRound, string> = {
@@ -302,28 +303,6 @@ function MiniMatch({ match }: { match: MatchSnapshot }) {
 
 function InfoPanel({ title, children }: { title: string; children: ReactNode }) {
   return <section className="rounded-[1.75rem] bg-psf-surface p-5 shadow-card"><h2 className="mb-4 text-xl font-black">{title}</h2><div className="grid gap-3">{children}</div></section>;
-}
-
-function isPlaceholderTeam(team: MatchSnapshot['homeTeam']) {
-  return team.isPlaceholder || /^(a definir|vencedor|perdedor)/i.test(team.name.trim());
-}
-
-const TEAM_CODES: Record<string, string> = {
-  franca: 'FRA',
-  marrocos: 'MAR',
-  japao: 'JPN',
-  coreiadosul: 'KOR',
-};
-
-function teamCode(team: MatchSnapshot['homeTeam']) {
-  if (team.abbreviation) return team.abbreviation.toUpperCase();
-
-  const normalizedName = normalizeTeamName(team.name);
-  return TEAM_CODES[normalizedName] ?? normalizedName.slice(0, 3).toUpperCase();
-}
-
-function normalizeTeamName(name: string) {
-  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 }
 
 function EmptyCard({ message }: { message: string }) {
