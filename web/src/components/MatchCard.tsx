@@ -1,4 +1,4 @@
-import type { MatchSnapshot, PublicPredictionSnapshot } from '../../../shared/types/domain';
+import type { MatchSnapshot, PublicPredictionSnapshot, TeamSnapshot } from '../../../shared/types/domain';
 import type { ScoreDraft } from '../types';
 import { formatKickoff, statusText } from '../lib/presentation';
 
@@ -11,16 +11,34 @@ export function MatchCard({ match, draft, now, publicPredictions, onChange, onRe
   return (
     <article className={`rounded-[1.5rem] bg-psf-surface p-4 shadow-card sm:rounded-[2rem] sm:p-5 ${draft?.saved ? 'ring-2 ring-psf-success' : ''} ${disabled ? 'opacity-90' : ''}`}>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><time className="text-sm font-bold text-psf-secondary">{formatKickoff(match.kickoffAt)}</time><span className={`w-fit rounded-full px-3 py-1 text-xs font-black ${disabled ? 'bg-psf-background text-psf-secondary' : 'bg-blue-50 text-psf-blue'}`}>{statusLabel}</span></div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"><TeamBlock name={match.homeTeam.name} logoUrl={match.homeTeam.logoUrl} align="right" /><div className="mx-auto grid grid-cols-[2.75rem_auto_2.75rem] items-center gap-1 sm:grid-cols-[4rem_auto_4rem] sm:gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock name={match.awayTeam.name} logoUrl={match.awayTeam.logoUrl} align="left" /></div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"><TeamBlock team={match.homeTeam} align="right" /><div className="mx-auto grid grid-cols-[2.75rem_auto_2.75rem] items-center gap-1 sm:grid-cols-[4rem_auto_4rem] sm:gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock team={match.awayTeam} align="left" /></div>
       {draft?.error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-psf-danger">{draft.error}</p>}
       {draft?.saved && !draft.error && <p className="mt-4 text-sm font-black text-psf-success">✓ Salvo</p>}
-      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="text-sm font-black text-psf-blue" type="button" onClick={() => onReveal(match.externalId)}>{publicPredictions?.loading ? 'Carregando...' : 'Ver palpites revelados'}</button>{publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points === 1 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore}</span></div>)}</div>}</section>}
+      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="text-sm font-black text-psf-blue" type="button" onClick={() => onReveal(match.externalId)}>{publicPredictions?.loading ? 'Carregando...' : 'Ver palpites revelados'}</button>{publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points > 0 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore} · {prediction.points} pts</span></div>)}</div>}</section>}
     </article>
   );
 }
 
-function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 break-words text-sm font-black sm:text-lg">{name}</strong>}<div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-psf-background text-xs font-black sm:h-11 sm:w-11 sm:text-sm">{logoUrl ? <img alt={`Bandeira de ${name}`} className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="min-w-0 break-words text-sm font-black sm:text-lg">{name}</strong>}</div>;
+function TeamBlock({ team, align }: { team: TeamSnapshot; align: 'left' | 'right' }) {
+  const label = getTeamLabel(team);
+  const badge = getTeamBadge(team);
+  return <div className={`flex min-w-0 items-center gap-1.5 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 text-sm font-black sm:text-lg">{label}</strong>}<div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-psf-background text-xl font-black sm:h-12 sm:w-12">{team.logoUrl && !team.isPlaceholder ? <img alt={`Bandeira de ${team.name}`} className="h-full w-full scale-125 object-cover" src={team.logoUrl} /> : badge}</div>{align === 'left' && <strong className="min-w-0 text-sm font-black sm:text-lg">{label}</strong>}</div>;
+}
+
+function getTeamLabel(team: TeamSnapshot) {
+  if (team.isPlaceholder) return flagEmojiFromAbbreviation(team.abbreviation) ?? '🏆';
+  return team.abbreviation ?? team.name.slice(0, 3).toUpperCase();
+}
+
+function getTeamBadge(team: TeamSnapshot) {
+  if (team.isPlaceholder) return '🏆';
+  return flagEmojiFromAbbreviation(team.abbreviation) ?? team.name.slice(0, 3).toUpperCase();
+}
+
+function flagEmojiFromAbbreviation(abbreviation: string | null) {
+  if (!abbreviation) return null;
+  const flags: Record<string, string> = { ARG: '🇦🇷', AUS: '🇦🇺', BEL: '🇧🇪', BRA: '🇧🇷', CAN: '🇨🇦', CHI: '🇨🇱', COL: '🇨🇴', CRO: '🇭🇷', DEN: '🇩🇰', ECU: '🇪🇨', ENG: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', ESP: '🇪🇸', FRA: '🇫🇷', GER: '🇩🇪', GHA: '🇬🇭', ITA: '🇮🇹', JPN: '🇯🇵', KOR: '🇰🇷', MAR: '🇲🇦', MEX: '🇲🇽', NED: '🇳🇱', NOR: '🇳🇴', POR: '🇵🇹', SEN: '🇸🇳', SUI: '🇨🇭', URU: '🇺🇾', USA: '🇺🇸' };
+  return flags[abbreviation.toUpperCase()] ?? null;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
