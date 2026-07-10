@@ -3,7 +3,7 @@ import { formatKickoff, statusText } from '../lib/presentation';
 import { isPlaceholderTeam, teamCode, teamEmoji } from '../lib/teams';
 import type { ScoreDraft } from '../types';
 
-type MatchCardProps = {
+export type MatchCardProps = {
   match: MatchSnapshot;
   draft?: ScoreDraft;
   now: number;
