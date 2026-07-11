@@ -8,6 +8,7 @@ type MatchCardProps = {
   now: number;
   publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string };
   isOpen?: boolean;
+  allMatches?: MatchSnapshot[];
   onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void;
   onReveal: (matchExternalId: string) => void;
 };
