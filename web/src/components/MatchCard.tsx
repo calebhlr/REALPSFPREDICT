@@ -2,7 +2,17 @@ import type { MatchSnapshot, PublicPredictionSnapshot } from '../../../shared/ty
 import type { ScoreDraft } from '../types';
 import { formatKickoff, statusText } from '../lib/presentation';
 
-export function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onReveal: (matchExternalId: string) => void }) {
+type MatchCardProps = {
+  match: MatchSnapshot;
+  draft?: ScoreDraft;
+  now: number;
+  publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string };
+  allMatches?: MatchSnapshot[];
+  onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void;
+  onReveal: (matchExternalId: string) => void;
+};
+
+export function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: MatchCardProps) {
   const locked = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= now;
   const hasPlaceholder = match.homeTeam.isPlaceholder || match.awayTeam.isPlaceholder;
   const disabled = locked || hasPlaceholder;
