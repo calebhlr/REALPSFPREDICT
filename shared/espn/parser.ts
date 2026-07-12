@@ -51,7 +51,18 @@ function parseEvent(event: unknown): EspnScoreboardParseResult {
   const competitors = Array.isArray(competition.competitors) ? competition.competitors.map(asRecord) : [];
   if (competitors.length < 2 || externalId === null) return createParseResult(null, false, externalId);
 
-  const round = parseRound(record.name, record.shortName);
+  const round = parseRound(
+    record.name,
+    record.shortName,
+    asRecord(record.season).slug,
+    asRecord(record.season).name,
+    asRecord(record.season).displayName,
+    asRecord(asRecord(record.season).type).name,
+    asRecord(asRecord(record.season).type).description,
+    asRecord(competition.type).text,
+    asRecord(competition.type).abbreviation,
+    ...parseCompetitionNotes(competition),
+  );
   if (round === null) return createParseResult(null, true, externalId);
 
   const home = competitors.find((competitor) => competitor.homeAway === 'home') ?? competitors[0];
@@ -68,6 +79,15 @@ function parseEvent(event: unknown): EspnScoreboardParseResult {
     awayScore: parseNullableInt(away.score),
     winnerTeamId: findWinnerTeamId(competitors),
   }, false, externalId);
+}
+
+function parseCompetitionNotes(competition: Record<string, unknown>) {
+  const notes = competition.notes;
+  if (!Array.isArray(notes)) return [];
+  return notes.flatMap((note) => {
+    const record = asRecord(note);
+    return [record.type, record.headline];
+  });
 }
 
 function createParseResult(match: MatchSnapshot | null, discardedUnknownRound: boolean, externalId: string | null): EspnScoreboardParseResult {
