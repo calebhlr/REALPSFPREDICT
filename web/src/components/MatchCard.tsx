@@ -7,13 +7,15 @@ type MatchCardProps = {
   draft?: ScoreDraft;
   now: number;
   publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string };
+  isOpen?: boolean;
   allMatches?: MatchSnapshot[];
   onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void;
   onReveal: (matchExternalId: string) => void;
 };
 
-export function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: MatchCardProps) {
-  const locked = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= now;
+export function MatchCard({ match, draft, now, publicPredictions, isOpen, onChange, onReveal }: MatchCardProps) {
+  const defaultIsOpen = match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now;
+  const locked = !(isOpen ?? defaultIsOpen);
   const hasPlaceholder = match.homeTeam.isPlaceholder || match.awayTeam.isPlaceholder;
   const disabled = locked || hasPlaceholder;
   const statusLabel = hasPlaceholder ? 'Aguardando definição dos times' : locked ? statusText(match.status) : 'Aberto para palpite';
