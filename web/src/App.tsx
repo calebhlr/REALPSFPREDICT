@@ -349,7 +349,7 @@ function InfoPanel({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-end text-right' : ''}`}>{align === 'right' && <strong className="text-base font-black sm:text-lg">{name}</strong>}<div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-psf-background text-sm font-black ring-1 ring-black/5">{logoUrl ? <img alt="" className="h-full w-full scale-125 object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
+  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-end text-right' : ''}`}>{align === 'right' && <strong className="text-base font-black sm:text-lg">{name}</strong>}<div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-psf-background text-sm font-black ring-1 ring-black/5">{logoUrl ? <img alt="" className="h-full w-full scale-[1.65] object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
