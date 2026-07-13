@@ -266,8 +266,8 @@ function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; mat
       </header>
       <section className="px-5 py-4">
         <div className="mx-auto grid max-w-5xl gap-3 rounded-[1.5rem] bg-psf-surface p-4 shadow-card md:grid-cols-[1fr_0.8fr_auto]">
-          <label className="grid gap-1 text-sm font-bold">Nome de exibição<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={30} value={props.displayName} onChange={(event) => props.setDisplayName(event.target.value)} placeholder="Ex: Pedro" /></label>
-          <label className="grid gap-1 text-sm font-bold">Username<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={20} value={props.username} onBlur={() => props.lookupParticipant()} onChange={(event) => props.setUsername(event.target.value.replace(/\s/g, ''))} placeholder="pedro_psf" /></label>
+          <label className="grid gap-1 text-sm font-bold">Nome de exibição<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={30} value={props.displayName} onChange={(event) => props.setDisplayName(event.target.value)} placeholder="Ex: Yago" /></label>
+          <label className="grid gap-1 text-sm font-bold">Username<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={20} value={props.username} onBlur={() => props.lookupParticipant()} onChange={(event) => props.setUsername(event.target.value.replace(/\s/g, ''))} placeholder="yago_psf" /></label>
           <button className="self-end rounded-2xl bg-psf-text px-5 py-3 font-black text-white disabled:opacity-60" type="button" onClick={() => props.lookupParticipant()} disabled={!props.username.trim()}>Buscar</button>
           {props.lookupMessage && <p className="text-sm font-semibold text-psf-secondary md:col-span-3">{props.lookupMessage}</p>}
         </div>
