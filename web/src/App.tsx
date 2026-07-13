@@ -266,8 +266,8 @@ function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; mat
       </header>
       <section className="px-5 py-4">
         <div className="mx-auto grid max-w-5xl gap-3 rounded-[1.5rem] bg-psf-surface p-4 shadow-card md:grid-cols-[1fr_0.8fr_auto]">
-          <label className="grid gap-1 text-sm font-bold">Nome de exibição<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={30} value={props.displayName} onChange={(event) => props.setDisplayName(event.target.value)} placeholder="Ex: Pedro" /></label>
-          <label className="grid gap-1 text-sm font-bold">Username<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={20} value={props.username} onBlur={() => props.lookupParticipant()} onChange={(event) => props.setUsername(event.target.value.replace(/\s/g, ''))} placeholder="pedro_psf" /></label>
+          <label className="grid gap-1 text-sm font-bold">Nome de exibição<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={30} value={props.displayName} onChange={(event) => props.setDisplayName(event.target.value)} placeholder="Ex: Yago" /></label>
+          <label className="grid gap-1 text-sm font-bold">Username<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={20} value={props.username} onBlur={() => props.lookupParticipant()} onChange={(event) => props.setUsername(event.target.value.replace(/\s/g, ''))} placeholder="yago_psf" /></label>
           <button className="self-end rounded-2xl bg-psf-text px-5 py-3 font-black text-white disabled:opacity-60" type="button" onClick={() => props.lookupParticipant()} disabled={!props.username.trim()}>Buscar</button>
           {props.lookupMessage && <p className="text-sm font-semibold text-psf-secondary md:col-span-3">{props.lookupMessage}</p>}
         </div>
@@ -275,7 +275,21 @@ function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; mat
       <section className="mx-auto grid max-w-5xl gap-8 px-5 py-8">
         {props.loadingMatches && <EmptyCard message="Carregando partidas da ESPN..." />}
         {!props.loadingMatches && props.groupedMatches.length === 0 && <EmptyCard message="Nenhuma partida encontrada agora." />}
-        {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-2xl font-black tracking-tight">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} onChange={props.updateDraft} onReveal={props.loadMatchPredictions} />)}</div></div>)}
+        {predictionGroups(props.groupedMatches, props.now).map((group) => (
+          <details className="overflow-hidden rounded-[1.75rem] bg-psf-surface shadow-card" key={group.round} open={group.isCurrent}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-psf-blue">{group.matches.length} {group.matches.length === 1 ? 'jogo' : 'jogos'}</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{ROUND_LABELS[group.round]}</h2>
+              </div>
+              {group.isCurrent && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-psf-blue">Fase atual</span>}
+              <span className="rounded-full bg-psf-background px-3 py-2 text-sm font-black text-psf-secondary">Abrir</span>
+            </summary>
+            <div className="grid gap-4 border-t border-black/5 bg-psf-background/40 p-4 sm:p-5">
+              {group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} onChange={props.updateDraft} onReveal={props.loadMatchPredictions} />)}
+            </div>
+          </details>
+        ))}
       </section>
       <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card disabled:opacity-60 sm:w-auto" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
     </>
@@ -335,7 +349,7 @@ function InfoPanel({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-end text-right' : ''}`}>{align === 'right' && <strong className="text-base font-black sm:text-lg">{name}</strong>}<div className="grid h-11 w-11 place-items-center overflow-hidden rounded-full bg-psf-background text-sm font-black">{logoUrl ? <img alt="" className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
+  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-end text-right' : ''}`}>{align === 'right' && <strong className="text-base font-black sm:text-lg">{name}</strong>}<div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-psf-background text-sm font-black ring-1 ring-black/5">{logoUrl ? <img alt="" className="h-full w-full scale-[1.65] object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
@@ -393,6 +407,20 @@ function validateDrafts(matches: MatchSnapshot[], drafts: Record<string, ScoreDr
   }
 
   return { errorCount, predictions, nextDrafts };
+}
+
+
+function predictionGroups(groupedMatches: Array<{ round: MatchRound; matches: MatchSnapshot[] }>, now: number) {
+  const visibleGroups = groupedMatches.filter((group) => group.round !== 'round_of_32');
+  const currentRound = findCurrentRound(visibleGroups, now);
+  return visibleGroups.map((group) => ({ ...group, isCurrent: group.round === currentRound }));
+}
+
+function findCurrentRound(groupedMatches: Array<{ round: MatchRound; matches: MatchSnapshot[] }>, now: number) {
+  return groupedMatches.find((group) => group.matches.some((match) => match.status === 'in_progress'))?.round
+    ?? groupedMatches.find((group) => group.matches.some((match) => match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now))?.round
+    ?? [...groupedMatches].reverse().find((group) => group.matches.some((match) => match.status === 'final'))?.round
+    ?? groupedMatches[0]?.round;
 }
 
 function groupMatches(matches: MatchSnapshot[]) {
