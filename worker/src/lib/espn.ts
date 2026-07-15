@@ -1,68 +1,48 @@
-import { parseEspnScoreboard, parseEspnScoreboardEvent } from '../../../shared/espn/parser';
+import { parseEspnScoreboard } from '../../../shared/espn/parser';
 import type { MatchSnapshot } from '../../../shared/types/domain';
 import type { Env } from './env';
 
-const ESPN_DATE_PATTERN = /^\d{8}$/;
-const ESPN_DATE_RANGE_PATTERN = /^(\d{8})-(\d{8})$/;
-const EXPECTED_KNOCKOUT_MATCH_COUNT = 32;
-const FIRST_2026_KNOCKOUT_EVENT_ID = 760486;
+const ESPN_REQUEST_HEADERS = { accept: 'application/json' };
+const ESPN_SCOREBOARD_LIMIT = '100';
+const MAX_DAILY_SCOREBOARD_REQUESTS = 60;
 
 export async function fetchKnockoutMatches(env: Env) {
-  const dateQueries = getEspnDateQueries(env.ESPN_KNOCKOUT_DATES);
-  const matchGroups = await Promise.all(dateQueries.map((dates) => fetchKnockoutMatchesForDates(env, dates)));
-  const scoreboardMatches = dedupeMatches(matchGroups.flat());
-  if (scoreboardMatches.length >= EXPECTED_KNOCKOUT_MATCH_COUNT) return scoreboardMatches;
+  const matchesById = new Map<string, MatchSnapshot>();
 
-  const summaryMatches = await fetchKnockoutMatchesByEventId(env);
-  return dedupeMatches([...scoreboardMatches, ...summaryMatches]);
-}
+  const payloads = await Promise.all(
+    buildScoreboardDateParams(env.ESPN_KNOCKOUT_DATES).map((dateParam) => fetchScoreboard(env.ESPN_SCOREBOARD_URL, dateParam)),
+  );
 
-export function getEspnDateQueries(dates: string): string[] {
-  const trimmed = dates.trim();
-  return ESPN_DATE_RANGE_PATTERN.test(trimmed) ? expandEspnDateQueries(trimmed) : [trimmed];
-}
-
-export function expandEspnDateQueries(dates: string): string[] {
-  const trimmed = dates.trim();
-  const range = trimmed.match(ESPN_DATE_RANGE_PATTERN);
-  if (!range) return [trimmed];
-
-  const [, start, end] = range;
-  const startDate = parseEspnDate(start);
-  const endDate = parseEspnDate(end);
-  if (endDate.getTime() < startDate.getTime()) return [trimmed];
-
-  const dateQueries: string[] = [];
-  for (const current = startDate; current.getTime() <= endDate.getTime(); current.setUTCDate(current.getUTCDate() + 1)) {
-    dateQueries.push(formatEspnDate(current));
+  for (const payload of payloads) {
+    for (const match of parseEspnScoreboard(payload)) {
+      matchesById.set(match.externalId, match);
+    }
   }
 
-  return dateQueries;
+  return Array.from(matchesById.values()).sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
 }
 
-async function fetchKnockoutMatchesByEventId(env: Env) {
-  const eventIds = Array.from({ length: EXPECTED_KNOCKOUT_MATCH_COUNT }, (_, index) => String(FIRST_2026_KNOCKOUT_EVENT_ID + index));
-  const matches = await Promise.all(eventIds.map((eventId) => fetchKnockoutMatchSummary(env, eventId)));
+export function buildScoreboardDateParams(rawDates: string) {
+  const normalized = rawDates.trim();
+  const range = normalized.match(/^(\d{8})-(\d{8})$/);
+  if (!range) return [normalized];
 
-  return matches.filter((match): match is MatchSnapshot => match !== null);
+  const start = parseEspnDate(range[1]);
+  const end = parseEspnDate(range[2]);
+  if (!start || !end || start.getTime() > end.getTime()) return [normalized];
+
+  const params: string[] = [];
+  for (const cursor = new Date(start); cursor.getTime() <= end.getTime() && params.length < MAX_DAILY_SCOREBOARD_REQUESTS; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    params.push(formatEspnDate(cursor));
+  }
+
+  return params.length > 0 ? params : [normalized];
 }
 
-async function fetchKnockoutMatchSummary(env: Env, eventId: string) {
-  const url = new URL('/apis/site/v2/sports/soccer/fifa.world/summary', getEspnSummaryBaseUrl(env));
-  url.searchParams.set('event', eventId);
-  url.searchParams.set('lang', 'pt');
-  url.searchParams.set('region', 'br');
-
-  const response = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!response.ok) return null;
-
-  return parseEspnScoreboardEvent(asRecord(await response.json()).header).match;
-}
-
-async function fetchKnockoutMatchesForDates(env: Env, dates: string) {
-  const url = new URL(env.ESPN_SCOREBOARD_URL);
+async function fetchScoreboard(baseUrl: string, dates: string) {
+  const url = new URL(baseUrl);
   url.searchParams.set('dates', dates);
-  url.searchParams.set('limit', '950');
+  url.searchParams.set('limit', ESPN_SCOREBOARD_LIMIT);
   url.searchParams.set('lang', 'pt');
   url.searchParams.set('region', 'br');
 
@@ -84,38 +64,5 @@ function formatEspnDate(date: Date) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}${month}${day}`;
-}
-
-function getEspnSummaryBaseUrl(env: Env) {
-  const scoreboardUrl = new URL(env.ESPN_SCOREBOARD_URL);
-  scoreboardUrl.hostname = scoreboardUrl.hostname.replace(/^site\.api\./, 'site.web.api.');
-
-  return scoreboardUrl;
-}
-
-export function dedupeMatches(matches: MatchSnapshot[]) {
-  return [...new Map(matches.map((match) => [match.externalId, match])).values()]
-    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
-}
-
-function parseEspnDate(value: string) {
-  if (!ESPN_DATE_PATTERN.test(value)) throw new Error(`Invalid ESPN date: ${value}`);
-  const year = Number(value.slice(0, 4));
-  const monthIndex = Number(value.slice(4, 6)) - 1;
-  const day = Number(value.slice(6, 8));
-
-  return new Date(Date.UTC(year, monthIndex, day));
-}
-
-function formatEspnDate(value: Date) {
-  const year = value.getUTCFullYear();
-  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(value.getUTCDate()).padStart(2, '0');
-
   return `${year}${month}${day}`;
 }

@@ -60,11 +60,9 @@ com range:
 
 **Consequência:** o parser em `shared/espn/parser.ts` normaliza times, status, placeholders e placares para o domínio interno.
 
-### 2026-07-04 — Pontuação simples por placar e gol de cada time
+### 2026-07-04 — Pontuação simples: placar exato
 
-**Decisão:** placar cravado vale 3 pontos. Se o palpite não for cravado, mas acertar o número de gols de um dos dois times, vale 1 ponto. Qualquer palpite sem placar cravado e sem gol correto de um dos times vale 0 ponto.
-
-**Exemplo:** se o resultado oficial for França 2 × 0 Marrocos, o palpite França 3 × 0 Marrocos vale 1 ponto porque acertou o placar do Marrocos.
+**Decisão:** apenas placar exato vale 1 ponto. Qualquer outro resultado vale 0.
 
 **Consequência:** a lógica central fica em `shared/scoring/exact-score.ts` e o ranking soma `points` dos palpites.
 
