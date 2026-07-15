@@ -7,10 +7,12 @@ export function scoreExactPrediction(args: {
   if (args.predictedHomeScore === null || args.predictedAwayScore === null) return 0;
   if (args.officialHomeScore === null || args.officialAwayScore === null) return 0;
 
-  const homeScoreMatches = args.predictedHomeScore === args.officialHomeScore;
-  const awayScoreMatches = args.predictedAwayScore === args.officialAwayScore;
+  const correctTeamScores = [
+    args.predictedHomeScore === args.officialHomeScore,
+    args.predictedAwayScore === args.officialAwayScore,
+  ].filter(Boolean).length;
 
-  if (homeScoreMatches && awayScoreMatches) return 3;
-  if (homeScoreMatches || awayScoreMatches) return 1;
+  if (correctTeamScores === 2) return 3;
+  if (correctTeamScores === 1) return 1;
   return 0;
 }
