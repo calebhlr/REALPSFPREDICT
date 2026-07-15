@@ -26,7 +26,7 @@ export async function getParticipantByUsername(env: Env, username: string) {
     .where(eq(predictions.participantId, participant.id))
     .orderBy(asc(matches.kickoffAt));
 
-  return participantSnapshot(participant, rows.map(({ prediction, match }) => predictionSnapshot(prediction, match.externalId)));
+  return participantSnapshot(participant, rows.map(({ prediction, match }) => predictionSnapshot(prediction, match)));
 }
 
 export async function listMatches(env: Env) {
@@ -39,7 +39,10 @@ export async function getRanking(env: Env) {
   const participantRows = await db.select().from(participants).orderBy(asc(participants.createdAt));
   if (participantRows.length === 0) return [];
 
-  const predictionRows = await db.select().from(predictions);
+  const predictionRows = await db
+    .select({ prediction: predictions, match: matches })
+    .from(predictions)
+    .innerJoin(matches, eq(predictions.matchId, matches.id));
   return calculateRanking(participantRows, predictionRows);
 }
 
@@ -196,7 +199,7 @@ export async function getPublicPredictionsForMatch(env: Env, matchExternalId: st
       matchExternalId,
       homeScore: prediction.homeScore,
       awayScore: prediction.awayScore,
-      points: prediction.points === 3 ? 3 : prediction.points === 1 ? 1 : 0,
+      points: calculatePredictionPoints(prediction, matchSnapshot(match)),
       savedAt: prediction.updatedAt.toISOString(),
     } satisfies PublicPredictionSnapshot)),
   } as const;
@@ -262,18 +265,18 @@ async function generateFeedForFinalizedMatch(env: Env, match: MatchRow) {
   });
 }
 
-function calculateRanking(participantRows: ParticipantRow[], predictionRows: PredictionRow[]): RankingEntrySnapshot[] {
-  const predictionsByParticipant = new Map<number, PredictionRow[]>();
-  for (const prediction of predictionRows) {
-    const current = predictionsByParticipant.get(prediction.participantId) ?? [];
-    current.push(prediction);
-    predictionsByParticipant.set(prediction.participantId, current);
+function calculateRanking(participantRows: ParticipantRow[], predictionRows: Array<{ prediction: PredictionRow; match: MatchRow }>): RankingEntrySnapshot[] {
+  const predictionsByParticipant = new Map<number, Array<{ prediction: PredictionRow; match: MatchRow }>>();
+  for (const row of predictionRows) {
+    const current = predictionsByParticipant.get(row.prediction.participantId) ?? [];
+    current.push(row);
+    predictionsByParticipant.set(row.prediction.participantId, current);
   }
 
   return participantRows
     .map((participant) => {
       const participantPredictions = predictionsByParticipant.get(participant.id) ?? [];
-      const points = participantPredictions.reduce((sum, prediction) => sum + prediction.points, 0);
+      const points = participantPredictions.reduce((sum, { prediction, match }) => sum + calculatePredictionPoints(prediction, matchSnapshot(match)), 0);
       const predictionsCount = participantPredictions.length;
       return {
         position: 0,
@@ -301,12 +304,12 @@ function participantSnapshot(participant: ParticipantRow, participantPredictions
   };
 }
 
-function predictionSnapshot(prediction: PredictionRow, matchExternalId: string): PredictionSnapshot {
+function predictionSnapshot(prediction: PredictionRow, match: MatchRow): PredictionSnapshot {
   return {
-    matchExternalId,
+    matchExternalId: match.externalId,
     homeScore: prediction.homeScore,
     awayScore: prediction.awayScore,
-    points: prediction.points === 3 ? 3 : prediction.points === 1 ? 1 : 0,
+    points: calculatePredictionPoints(prediction, matchSnapshot(match)),
     savedAt: prediction.updatedAt.toISOString(),
   };
 }

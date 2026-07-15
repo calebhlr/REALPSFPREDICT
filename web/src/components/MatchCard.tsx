@@ -86,11 +86,30 @@ function previousRoundFor(round: MatchSnapshot['round'], placeholderName: string
   return undefined;
 }
 
-function TeamBlock({ team, align, placeholderLabel }: { team: MatchSnapshot['homeTeam']; align: 'left' | 'right'; placeholderLabel?: string }) {
+type TeamBlockProps = {
+  align: 'left' | 'right';
+  placeholderLabel?: string;
+} & ({
+  team: MatchSnapshot['homeTeam'];
+} | {
+  name: string;
+  logoUrl: string | null;
+});
+
+function TeamBlock(props: TeamBlockProps) {
+  const { align, placeholderLabel } = props;
+  const team = 'team' in props ? props.team : {
+    id: props.name,
+    name: props.name,
+    abbreviation: null,
+    logoUrl: props.logoUrl,
+    color: null,
+    isPlaceholder: false,
+  } satisfies MatchSnapshot['homeTeam'];
   const placeholder = isPlaceholderTeam(team);
   const label = placeholder ? placeholderLabel ?? 'A definir' : teamCode(team);
   const emoji = teamEmoji(team);
-  const badge = placeholder ? <CupIcon /> : emoji ? <span className="text-2xl leading-none sm:text-3xl">{emoji}</span> : team.logoUrl ? <img alt={`Bandeira de ${team.name}`} className="h-full w-full scale-[1.85] object-cover" src={team.logoUrl} /> : team.name.slice(0, 2).toUpperCase();
+  const badge = placeholder ? <CupIcon /> : team.logoUrl ? <img alt={`Bandeira de ${team.name}`} className="h-full w-full scale-[1.85] object-cover" src={team.logoUrl} /> : emoji ? <span className="text-2xl leading-none sm:text-3xl">{emoji}</span> : team.name.slice(0, 2).toUpperCase();
 
   return <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}<div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/80 bg-psf-background ring-2 ring-inset ring-black/80 text-xs font-black sm:h-11 sm:w-11 sm:text-sm">{badge}</div>{align === 'left' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}</div>;
 }
