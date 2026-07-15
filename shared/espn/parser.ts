@@ -71,6 +71,15 @@ function parseEvent(event: unknown): EspnScoreboardParseResult {
   }, false, externalId);
 }
 
+function parseCompetitionNotes(competition: Record<string, unknown>) {
+  const notes = competition.notes;
+  if (!Array.isArray(notes)) return [];
+  return notes.flatMap((note) => {
+    const record = asRecord(note);
+    return [record.type, record.headline];
+  });
+}
+
 function createParseResult(match: MatchSnapshot | null, discardedUnknownRound: boolean, externalId: string | null): EspnScoreboardParseResult {
   const result = [match, discardedUnknownRound] as EspnScoreboardParseResult;
   result.match = match;

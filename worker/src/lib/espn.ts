@@ -66,10 +66,25 @@ async function fetchKnockoutMatchesForDates(env: Env, dates: string) {
   url.searchParams.set('lang', 'pt');
   url.searchParams.set('region', 'br');
 
-  const response = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!response.ok) throw new Error(`ESPN sync failed with status ${response.status}`);
+  const response = await fetch(url, { headers: ESPN_REQUEST_HEADERS });
+  if (!response.ok) throw new Error(`ESPN sync failed for dates=${dates} with status ${response.status}`);
 
-  return parseEspnScoreboard(await response.json());
+  return response.json();
+}
+
+function parseEspnDate(value: string) {
+  const year = Number(value.slice(0, 4));
+  const monthIndex = Number(value.slice(4, 6)) - 1;
+  const day = Number(value.slice(6, 8));
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || !Number.isInteger(day)) return null;
+  return new Date(Date.UTC(year, monthIndex, day));
+}
+
+function formatEspnDate(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
 }
 
 function getEspnSummaryBaseUrl(env: Env) {
