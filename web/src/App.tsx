@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
+import { isPlaceholderTeam, teamCode } from './lib/teams';
+import { PredictionsPage } from './pages/PredictionsPage';
 
 const ROUND_LABELS: Record<MatchRound, string> = {
   round_of_32: 'Round of 32',
@@ -11,6 +13,7 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 };
 
 const ROUND_ORDER: MatchRound[] = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const PREDICTION_ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'https://api.psfes.space';
 
@@ -32,6 +35,7 @@ export function App() {
   const [username, setUsername] = useState('');
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [matchPredictions, setMatchPredictions] = useState<MatchPredictionsState>({});
+  const [openPredictionMatchIds, setOpenPredictionMatchIds] = useState<string[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [publicDataError, setPublicDataError] = useState<PublicDataError>();
   const [saving, setSaving] = useState(false);
@@ -125,7 +129,8 @@ export function App() {
     }, 450);
   }, [lookupParticipant, username]);
 
-  const groupedMatches = useMemo(() => groupMatches(matches), [matches]);
+  const predictionMatches = useMemo(() => matches.filter((match) => PREDICTION_ROUND_ORDER.includes(match.round)), [matches]);
+  const groupedMatches = useMemo(() => groupMatches(predictionMatches, PREDICTION_ROUND_ORDER), [predictionMatches]);
   const nextMatch = useMemo(() => matches.find((match) => match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now), [matches, now]);
   const finalMatchClosed = matches.some((match) => match.round === 'final' && match.status === 'final');
   const leaders = ranking.length > 0 ? ranking.filter((entry) => entry.points === ranking[0].points) : [];
@@ -143,7 +148,16 @@ export function App() {
   }
 
   async function loadMatchPredictions(matchExternalId: string) {
-    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { loading: true } }));
+    if (openPredictionMatchIds.includes(matchExternalId)) {
+      setOpenPredictionMatchIds((current) => current.filter((id) => id !== matchExternalId));
+      return;
+    }
+
+    setOpenPredictionMatchIds((current) => current.includes(matchExternalId) ? current : [...current, matchExternalId]);
+
+    if (matchPredictions[matchExternalId]?.predictions || matchPredictions[matchExternalId]?.loading) return;
+
+    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { ...current[matchExternalId], loading: true, error: undefined } }));
     try {
       const response = await fetch(apiUrl(`/api/matches/${encodeURIComponent(matchExternalId)}/predictions`));
       const data = await response.json() as { predictions?: PublicPredictionSnapshot[]; error?: string };
@@ -162,7 +176,7 @@ export function App() {
       return;
     }
 
-    const validation = validateDrafts(matches, drafts);
+    const validation = validateDrafts(predictionMatches, drafts);
     setDrafts(validation.nextDrafts);
     if (validation.errorCount > 0) {
       setToast({ type: 'error', message: 'Revise os placares destacados antes de salvar.' });
@@ -205,7 +219,7 @@ export function App() {
       <TopNav route={route} navigate={navigate} />
 
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
-      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
+      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} openPredictionMatchIds={openPredictionMatchIds} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} loading={loadingMatches} error={publicDataError} />}
       {route === '/feed' && <FeedPage feed={feed} loading={loadingMatches} error={publicDataError} />}
       {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
@@ -341,7 +355,7 @@ function RankingMini({ entry }: { entry: RankingEntrySnapshot }) {
 }
 
 function MiniMatch({ match }: { match: MatchSnapshot }) {
-  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{match.homeTeam.name} × {match.awayTeam.name}</p></div>;
+  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{teamCode(match.homeTeam)} × {teamCode(match.awayTeam)}</p></div>;
 }
 
 function InfoPanel({ title, children }: { title: string; children: ReactNode }) {
@@ -390,7 +404,7 @@ function validateDrafts(matches: MatchSnapshot[], drafts: Record<string, ScoreDr
     const draft = drafts[match.externalId];
     if (!draft?.homeScore && !draft?.awayScore) continue;
     const locked = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= Date.now();
-    const hasPlaceholder = match.homeTeam.isPlaceholder || match.awayTeam.isPlaceholder;
+    const hasPlaceholder = isPlaceholderTeam(match.homeTeam) || isPlaceholderTeam(match.awayTeam);
     if (locked || hasPlaceholder) continue;
 
     const homeScore = Number(draft.homeScore);
@@ -433,12 +447,6 @@ function groupMatches(matches: MatchSnapshot[]) {
 function formatKickoff(value: string) {
   if (!value) return 'Horário a confirmar';
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(value));
-}
-
-function statusText(status: MatchSnapshot['status']) {
-  if (status === 'final') return 'Encerrado';
-  if (status === 'in_progress') return 'Ao vivo';
-  return 'Bloqueado';
 }
 
 function trendLabel(delta: number) {
