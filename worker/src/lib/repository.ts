@@ -115,10 +115,10 @@ export async function validatePredictionWindow(db: Database, matchExternalId: st
 
 export async function getRanking(db: Database) {
   const participantRows = await db.select().from(participants);
-  const predictionRows = await db.select().from(predictions);
+  const predictionRows = await db.select({ prediction: predictions, match: matches }).from(predictions).innerJoin(matches, eq(predictions.matchId, matches.id));
   return participantRows.map((participant) => {
-    const ownPredictions = predictionRows.filter((prediction) => prediction.participantId === participant.id);
-    const points = ownPredictions.reduce((sum, prediction) => sum + prediction.points, 0);
+    const ownPredictions = predictionRows.filter(({ prediction }) => prediction.participantId === participant.id);
+    const points = ownPredictions.reduce((sum, { prediction, match }) => sum + calculatePredictionPoints(prediction, toMatchSnapshot(match)), 0);
     const predictionsCount = ownPredictions.length;
     return {
       position: 0,
@@ -159,7 +159,7 @@ export async function getPublicPredictionsForMatch(db: Database, matchExternalId
     matchExternalId,
     homeScore: prediction.homeScore,
     awayScore: prediction.awayScore,
-    points: prediction.points as 0 | 1,
+    points: calculatePredictionPoints(prediction, match),
     savedAt: prediction.updatedAt.toISOString(),
   })) } as const;
 }
@@ -196,7 +196,7 @@ function toParticipantSnapshot(participant: DbParticipant, participantPrediction
 }
 
 function toPredictionSnapshot(prediction: DbPrediction, match: DbMatch): PredictionSnapshot {
-  return { matchExternalId: match.externalId, homeScore: prediction.homeScore, awayScore: prediction.awayScore, points: prediction.points as 0 | 1, savedAt: prediction.updatedAt.toISOString() };
+  return { matchExternalId: match.externalId, homeScore: prediction.homeScore, awayScore: prediction.awayScore, points: calculatePredictionPoints(prediction, toMatchSnapshot(match)), savedAt: prediction.updatedAt.toISOString() };
 }
 
 function toMatchSnapshot(match: DbMatch): MatchSnapshot {

@@ -132,34 +132,56 @@ describe('repository ranking', () => {
       { id: 1, displayName: 'Older User', usernameNormalized: 'older', createdAt: olderCreatedAt },
     ];
 
-    const mockPredictions = [
-      { participantId: 1, matchId: 1, points: 1 },
-      { participantId: 2, matchId: 1, points: 1 },
+    const finalMatch = mockMatch({ status: 'final', homeScore: 2, awayScore: 0 });
+    const mockPredictionRows = [
+      { prediction: { participantId: 1, matchId: 1, homeScore: 3, awayScore: 0, points: 0 }, match: finalMatch },
+      { prediction: { participantId: 2, matchId: 1, homeScore: 2, awayScore: 1, points: 0 }, match: finalMatch },
     ];
 
-    const mockDb = {
-      select: vi.fn().mockReturnThis(),
-      from: vi.fn().mockImplementation(function(this: unknown, table: unknown) {
-        const t = table as Record<string, unknown>;
-        if (t?.__name === 'participants') return Promise.resolve(mockParticipants);
-        if (t?.__name === 'predictions') return Promise.resolve(mockPredictions);
-        return Promise.resolve([]);
-      }),
-    } as unknown as Database;
-
     let callCount = 0;
-    mockDb.select = vi.fn().mockImplementation(() => ({
-       from: vi.fn().mockImplementation(() => {
-           callCount++;
-           if (callCount === 1) return Promise.resolve(mockParticipants);
-           if (callCount === 2) return Promise.resolve(mockPredictions);
-           return Promise.resolve([]);
-       })
-    }));
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => ({
+        from: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return Promise.resolve(mockParticipants);
+          return {
+            innerJoin: vi.fn().mockResolvedValue(mockPredictionRows),
+          };
+        }),
+      })),
+    } as unknown as Database;
 
     const repo = createRepository(mockDb);
     const ranking = await repo.getRanking();
 
     expect(ranking.map((entry) => entry.username)).toEqual(['older', 'newer']);
+    expect(ranking.map((entry) => entry.points)).toEqual([1, 1]);
+  });
+
+  it('calculates ranking from current match scores instead of stale stored prediction points', async () => {
+    const createdAt = new Date('2026-07-10T10:00:00.000Z');
+    const mockParticipants = [{ id: 1, displayName: 'Jane Doe', usernameNormalized: 'jane', createdAt }];
+    const finalMatch = mockMatch({ status: 'final', homeScore: 2, awayScore: 0 });
+    const mockPredictionRows = [
+      { prediction: { participantId: 1, matchId: 1, homeScore: 3, awayScore: 0, points: 0 }, match: finalMatch },
+    ];
+
+    let callCount = 0;
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => ({
+        from: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return Promise.resolve(mockParticipants);
+          return {
+            innerJoin: vi.fn().mockResolvedValue(mockPredictionRows),
+          };
+        }),
+      })),
+    } as unknown as Database;
+
+    const repo = createRepository(mockDb);
+    const ranking = await repo.getRanking();
+
+    expect(ranking[0]).toMatchObject({ username: 'jane', points: 1 });
   });
 });

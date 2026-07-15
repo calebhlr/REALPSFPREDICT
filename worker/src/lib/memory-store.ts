@@ -9,7 +9,16 @@ let previousPositions = new Map<string, number>();
 const feedEvents: FeedEventSnapshot[] = [];
 
 export function getParticipantByUsername(username: string) {
-  return participants.get(username.toLowerCase()) ?? null;
+  const participant = participants.get(username.toLowerCase());
+  if (!participant) return null;
+
+  return {
+    ...participant,
+    predictions: participant.predictions.map((prediction) => ({
+      ...prediction,
+      points: calculatePredictionPoints(prediction, matches.get(prediction.matchExternalId)),
+    })),
+  };
 }
 
 export function listMatches() {
@@ -105,7 +114,7 @@ export function getPublicPredictionsForMatch(matchExternalId: string, now = Date
       matchExternalId,
       homeScore: prediction.homeScore,
       awayScore: prediction.awayScore,
-      points: prediction.points,
+      points: calculatePredictionPoints(prediction, match),
       savedAt: prediction.savedAt,
     } satisfies PublicPredictionSnapshot];
   });
@@ -158,7 +167,7 @@ function rescorePredictionsForMatch(match: MatchSnapshot) {
 function recalculateRanking(finalizedMatches: MatchSnapshot[] = []) {
   const nextRanking = Array.from(participants.values())
     .map((participant) => {
-      const points = participant.predictions.reduce((sum, prediction) => sum + prediction.points, 0);
+      const points = participant.predictions.reduce((sum, prediction) => sum + calculatePredictionPoints(prediction, matches.get(prediction.matchExternalId)), 0);
       const predictionsCount = participant.predictions.length;
       return {
         position: 0,

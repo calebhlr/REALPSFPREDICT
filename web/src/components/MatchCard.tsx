@@ -31,8 +31,72 @@ export function MatchCard({ match, draft, now, publicPredictions, isOpen, onChan
   );
 }
 
-function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-start text-left sm:justify-end sm:text-right' : ''}`}>{align === 'right' && <strong className="order-2 text-base font-black sm:order-none sm:text-lg">{name}</strong>}<div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-psf-background text-sm font-black sm:h-11 sm:w-11">{logoUrl ? <img alt="" className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
+function placeholderCandidateLabel(match: MatchSnapshot, team: MatchSnapshot['homeTeam'], allMatches: MatchSnapshot[]) {
+  if (!isPlaceholderTeam(team)) return undefined;
+
+  const sourceMatch = findSourceMatch(match, team.name, allMatches);
+  if (!sourceMatch) return 'A definir';
+
+  const homeCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.homeTeam, allMatches);
+  const awayCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.awayTeam, allMatches);
+  if (!homeCandidate || !awayCandidate) return 'A definir';
+
+  return `${homeCandidate} / ${awayCandidate}`;
+}
+
+function resolveTeamEmoji(match: MatchSnapshot, team: MatchSnapshot['homeTeam'], allMatches: MatchSnapshot[], seen = new Set<string>()): string | undefined {
+  const emoji = teamEmoji(team);
+  if (emoji) return emoji;
+  if (!isPlaceholderTeam(team)) return undefined;
+
+  const seenKey = `${match.externalId}:${team.name}`;
+  if (seen.has(seenKey)) return undefined;
+  seen.add(seenKey);
+
+  const sourceMatch = findSourceMatch(match, team.name, allMatches);
+  if (!sourceMatch) return undefined;
+
+  const homeCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.homeTeam, allMatches, seen);
+  const awayCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.awayTeam, allMatches, seen);
+  if (!homeCandidate || !awayCandidate) return undefined;
+
+  return `${homeCandidate} / ${awayCandidate}`;
+}
+
+function findSourceMatch(match: MatchSnapshot, placeholderName: string, allMatches: MatchSnapshot[]) {
+  const sourceRound = previousRoundFor(match.round, placeholderName);
+  const sourceIndex = Number(placeholderName.match(/(\d+)/)?.[1] ?? 0) - 1;
+  if (!sourceRound || sourceIndex < 0) return undefined;
+
+  return allMatches
+    .filter((candidate) => candidate.round === sourceRound)
+    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())[sourceIndex];
+}
+
+function previousRoundFor(round: MatchSnapshot['round'], placeholderName: string): MatchSnapshot['round'] | undefined {
+  if (/semifinal/i.test(placeholderName)) return 'semifinal';
+  if (round === 'round_of_16') return 'round_of_32';
+  if (round === 'quarterfinal') return 'round_of_16';
+  if (round === 'semifinal') return 'quarterfinal';
+  if (round === 'third_place' || round === 'final') return 'semifinal';
+  return undefined;
+}
+
+function TeamBlock({ team, align, placeholderLabel }: { team: MatchSnapshot['homeTeam']; align: 'left' | 'right'; placeholderLabel?: string }) {
+  const placeholder = isPlaceholderTeam(team);
+  const label = placeholder ? placeholderLabel ?? 'A definir' : teamCode(team);
+  const emoji = teamEmoji(team);
+  const badge = placeholder ? <CupIcon /> : team.logoUrl ? <img alt={`Bandeira de ${team.name}`} className="h-full w-full scale-[1.85] object-cover" src={team.logoUrl} /> : emoji ? <span className="text-2xl leading-none sm:text-3xl">{emoji}</span> : team.name.slice(0, 2).toUpperCase();
+
+  return <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}<div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/80 bg-psf-background ring-2 ring-inset ring-black/80 text-xs font-black sm:h-11 sm:w-11 sm:text-sm">{badge}</div>{align === 'left' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}</div>;
+}
+
+function CupIcon() {
+  return <svg aria-label="Confronto a definir" className="h-5 w-5 text-psf-gold sm:h-6 sm:w-6" fill="none" role="img" viewBox="0 0 24 24"><path d="M8 21h8M9 17h6M12 17v4M7 4h10v3.5c0 3.75-2.05 6.5-5 6.5s-5-2.75-5-6.5V4Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /><path d="M7 6H4.5A1.5 1.5 0 0 0 3 7.5V8a4 4 0 0 0 4 4M17 6h2.5A1.5 1.5 0 0 1 21 7.5V8a4 4 0 0 1-4 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>;
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return <svg aria-hidden="true" className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
