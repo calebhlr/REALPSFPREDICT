@@ -82,7 +82,26 @@ function previousRoundFor(round: MatchSnapshot['round'], placeholderName: string
   return undefined;
 }
 
-function TeamBlock({ team, align, placeholderLabel }: { team: MatchSnapshot['homeTeam']; align: 'left' | 'right'; placeholderLabel?: string }) {
+type TeamBlockProps = {
+  align: 'left' | 'right';
+  placeholderLabel?: string;
+} & ({
+  team: MatchSnapshot['homeTeam'];
+} | {
+  name: string;
+  logoUrl: string | null;
+});
+
+function TeamBlock(props: TeamBlockProps) {
+  const { align, placeholderLabel } = props;
+  const team = 'team' in props ? props.team : {
+    id: props.name,
+    name: props.name,
+    abbreviation: null,
+    logoUrl: props.logoUrl,
+    color: null,
+    isPlaceholder: false,
+  } satisfies MatchSnapshot['homeTeam'];
   const placeholder = isPlaceholderTeam(team);
   const label = placeholder ? placeholderLabel ?? 'A definir' : teamCode(team);
   const emoji = teamEmoji(team);
